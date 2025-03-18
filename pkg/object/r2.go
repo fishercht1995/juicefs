@@ -193,8 +193,7 @@
 	 return err
  }
  
- // R2 不支持创建 Bucket，需要手动创建
- func (r *r2Client) Create() error {
-	 return fmt.Errorf("Cloudflare R2 does not support creating buckets via API")
- }
+ func init() {
+	Register("r2", newS3)
+}
  
