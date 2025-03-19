@@ -426,6 +426,7 @@ func NewReloadableStorage(format *meta.Format, cli meta.Meta, patch func(*meta.F
 	if patch != nil {
 		patch(format)
 	}
+
 	blob, err := createStorage(*format)
 	if err != nil {
 		return nil, err

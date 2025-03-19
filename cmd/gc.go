@@ -93,7 +93,6 @@ func gc(ctx *cli.Context) error {
 
 	chunkConf := *getDefaultChunkConf(format)
 	chunkConf.CacheDir = "memory"
-
 	blob, err := createStorage(*format)
 	if err != nil {
 		logger.Fatalf("object storage: %s", err)

@@ -501,7 +501,6 @@ func format(c *cli.Context) error {
 			format.Bucket += "/"
 		}
 	}
-
 	blob, err := createStorage(*format)
 	if err != nil {
 		logger.Fatalf("object storage: %s", err)
