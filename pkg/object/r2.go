@@ -20,29 +20,111 @@ type r2Client struct {
 	session *session.Session
 }
 
-func newR2(endpoint, accessKey, secretKey, bucket string) (ObjectStorage, error) {
-	if !strings.Contains(endpoint, "r2.cloudflarestorage.com") {
-		return nil, fmt.Errorf("invalid R2 endpoint: %s", endpoint)
-	}
+/*
+func newR2(bucket, accessKey, secretKey, endpoint string) (ObjectStorage, error) {
+    fmt.Println("newR2() called with parameters:")
+    fmt.Println("Endpoint:", endpoint)
+    fmt.Println("Access Key:", accessKey)
+    fmt.Println("Secret Key:", secretKey)
+    fmt.Println("Bucket:", bucket)
 
-	awsConfig := &aws.Config{
-		Endpoint:         aws.String(endpoint),
-		Region:           aws.String("auto"),
-		S3ForcePathStyle: aws.Bool(true),
-		Credentials:      credentials.NewStaticCredentials(accessKey, secretKey, ""),
-	}
+    if strings.HasPrefix(bucket, "https://") {
+        u, err := url.Parse(bucket)
+        if err != nil {
+            return nil, fmt.Errorf("Invalid bucket URL: %s", bucket)
+        }
 
-	sess, err := session.NewSession(awsConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create R2 session: %v", err)
-	}
+        // 提取 bucket (路径部分)
+        pathParts := strings.Split(strings.Trim(u.Path, "/"), "/")
+        if len(pathParts) > 0 {
+            bucket = pathParts[0] // 只获取 `models`
+        }
 
-	return &r2Client{
-		bucket:  bucket,
-		s3:      s3.New(sess),
-		session: sess,
-	}, nil
+        // 提取 endpoint (去掉路径，只保留域名)
+        endpoint = u.Scheme + "://" + u.Host
+    }
+
+    if bucket == "" {
+        return nil, fmt.Errorf("Bucket name cannot be empty")
+    }
+    if endpoint == "" {
+        return nil, fmt.Errorf("Cloudflare R2 requires an explicit endpoint")
+    }
+
+    fmt.Println("Parsed Bucket:", bucket)
+    fmt.Println("Parsed Endpoint:", endpoint)
+
+    awsConfig := &aws.Config{
+        Endpoint:         aws.String(endpoint),
+        Region:           aws.String("us-east-1"), // ✅ R2 需要 `us-east-1`
+        S3ForcePathStyle: aws.Bool(true),
+        Credentials:      credentials.NewStaticCredentials(accessKey, secretKey, ""),
+    }
+
+    sess, err := session.NewSession(awsConfig)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create R2 session: %v", err)
+    }
+
+    return &r2Client{
+        bucket:  bucket,
+        s3:      s3.New(sess),
+        session: sess,
+    }, nil
 }
+*/
+
+func newR2(bucket, accessKey, secretKey, endpoint string) (ObjectStorage, error) {
+    fmt.Println("✅ Entering newR2() with bucket:", bucket, "endpoint:", endpoint)
+
+    if strings.HasPrefix(bucket, "https://") {
+        u, err := url.Parse(bucket)
+        if err != nil {
+            fmt.Println("❌ Invalid bucket URL:", bucket)
+            return nil, fmt.Errorf("Invalid bucket URL: %s", bucket)
+        }
+
+        pathParts := strings.Split(strings.Trim(u.Path, "/"), "/")
+        if len(pathParts) > 0 {
+            bucket = pathParts[0] 
+        }
+        endpoint = u.Scheme + "://" + u.Host
+    }
+
+    if bucket == "" {
+        fmt.Println("❌ Error: Bucket name is empty!")
+        return nil, fmt.Errorf("Bucket name cannot be empty")
+    }
+    if endpoint == "" {
+        fmt.Println("❌ Error: Endpoint is empty!")
+        return nil, fmt.Errorf("Cloudflare R2 requires an explicit endpoint")
+    }
+
+    fmt.Println("✅ Parsed Bucket:", bucket)
+    fmt.Println("✅ Parsed Endpoint:", endpoint)
+
+    awsConfig := &aws.Config{
+        Endpoint:         aws.String(endpoint),
+        Region:           aws.String("us-east-1"), 
+        S3ForcePathStyle: aws.Bool(true),
+        Credentials:      credentials.NewStaticCredentials(accessKey, secretKey, ""),
+    }
+
+    sess, err := session.NewSession(awsConfig)
+    if err != nil {
+        fmt.Println("❌ Failed to create R2 session:", err)
+        return nil, fmt.Errorf("failed to create R2 session: %v", err)
+    }
+
+    fmt.Println("✅ R2 session created successfully!")
+
+    return &r2Client{
+        bucket:  bucket,
+        s3:      s3.New(sess),
+        session: sess,
+    }, nil
+}
+
 
 func (r *r2Client) String() string {
 	return fmt.Sprintf("r2://%s/", r.bucket)
@@ -77,59 +159,57 @@ func (r *r2Client) Head(key string) (Object, error) {
 }
 
 func (r *r2Client) Get(key string, off, limit int64, getters ...AttrGetter) (io.ReadCloser, error) {
-	params := &s3.GetObjectInput{
-		Bucket: &r.bucket,
-		Key:    &key,
-	}
+    params := &s3.GetObjectInput{
+        Bucket: &r.bucket,
+        Key:    &key,
+    }
 
-	
-	if off > 0 || limit > 0 {
-		var rangeHeader string
-		if limit > 0 {
-			rangeHeader = fmt.Sprintf("bytes=%d-%d", off, off+limit-1)
-		} else {
-			rangeHeader = fmt.Sprintf("bytes=%d-", off)
-		}
-		params.Range = &rangeHeader
-	}
+    if off > 0 || limit > 0 {
+        var rangeHeader string
+        if limit > 0 {
+            rangeHeader = fmt.Sprintf("bytes=%d-%d", off, off+limit-1)
+        } else {
+            rangeHeader = fmt.Sprintf("bytes=%d-", off)
+        }
+        params.Range = &rangeHeader
+    }
 
-	resp, err := r.s3.GetObject(params)
-	if err != nil {
-		return nil, err
-	}
+    resp, err := r.s3.GetObject(params)
+    if err != nil {
+        return nil, err
+    }
 
-	attrs := applyGetters(getters...)
-	attrs.SetRequestID("R2_Get") 
+    attrs := applyGetters(getters...)
+    attrs.SetRequestID("R2_Get")
 
-	return resp.Body, nil
+    return resp.Body, nil
 }
 
 
 func (r *r2Client) Put(key string, in io.Reader, getters ...AttrGetter) error {
-	var body io.ReadSeeker
-	if b, ok := in.(io.ReadSeeker); ok {
-		body = b
-	} else {
-		data, err := io.ReadAll(in)
-		if err != nil {
-			return err
-		}
-		body = bytes.NewReader(data)
-	}
+    var body io.ReadSeeker
+    if b, ok := in.(io.ReadSeeker); ok {
+        body = b
+    } else {
+        data, err := io.ReadAll(in)
+        if err != nil {
+            return err
+        }
+        body = bytes.NewReader(data)
+    }
 
-	params := &s3.PutObjectInput{
-		Bucket: aws.String(r.bucket),
-		Key:    aws.String(key),
-		Body:   body,
-	}
+    params := &s3.PutObjectInput{
+        Bucket: &r.bucket,
+        Key:    &key,
+        Body:   body,
+    }
 
-	_, err := r.s3.PutObject(params)
+    _, err := r.s3.PutObject(params)
 
-	
-	attrs := applyGetters(getters...)
-	attrs.SetRequestID("R2_Put") 
+    attrs := applyGetters(getters...)
+    attrs.SetRequestID("R2_Put")
 
-	return err
+    return err
 }
 
 
@@ -150,9 +230,9 @@ func (r *r2Client) Delete(key string, getters ...AttrGetter) error {
 
 func (r *r2Client) List(prefix, start, token, delimiter string, limit int64, followLink bool) ([]Object, bool, string, error) {
 	params := &s3.ListObjectsV2Input{
-		Bucket:       aws.String(r.bucket),
-		Prefix:       aws.String(prefix),
-		MaxKeys:      aws.Int64(limit),
+		Bucket:       &r.bucket, 
+		Prefix:       &prefix,
+		MaxKeys:      &limit,
 		EncodingType: aws.String("url"),
 	}
 
@@ -193,19 +273,21 @@ func (r *r2Client) List(prefix, start, token, delimiter string, limit int64, fol
 }
 
 func (r *r2Client) Copy(dst, src string) error {
-	srcPath := r.bucket + "/" + src
-	params := &s3.CopyObjectInput{
-		Bucket:     aws.String(r.bucket),
-		Key:        aws.String(dst),
-		CopySource: aws.String(srcPath),
-	}
+    srcPath := fmt.Sprintf("/%s/%s", r.bucket, src) 
+    encodedSrc := url.PathEscape(srcPath)           
 
-	_, err := r.s3.CopyObject(params)
-	return err
+    params := &s3.CopyObjectInput{
+        Bucket:     &r.bucket,
+        Key:        &dst,
+        CopySource: &encodedSrc,
+    }
+
+    _, err := r.s3.CopyObject(params)
+    return err
 }
 
 func (r *r2Client) Create() error {
-	return fmt.Errorf("Cloudflare R2 does not support creating buckets via API")
+    return nil
 }
 
 func (r *r2Client) CompleteUpload(key string, uploadID string, parts []*Part) error {
@@ -234,5 +316,6 @@ func (r *r2Client) UploadPartCopy(key string, uploadID string, num int, srcKey s
 }
 
 func init() {
+	fmt.Println("🔥 Registering R2 storage backend") // debug
 	Register("r2", newR2)
 }
