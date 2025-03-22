@@ -20,59 +20,6 @@ type r2Client struct {
 	session *session.Session
 }
 
-/*
-func newR2(bucket, accessKey, secretKey, endpoint string) (ObjectStorage, error) {
-    fmt.Println("newR2() called with parameters:")
-    fmt.Println("Endpoint:", endpoint)
-    fmt.Println("Access Key:", accessKey)
-    fmt.Println("Secret Key:", secretKey)
-    fmt.Println("Bucket:", bucket)
-
-    if strings.HasPrefix(bucket, "https://") {
-        u, err := url.Parse(bucket)
-        if err != nil {
-            return nil, fmt.Errorf("Invalid bucket URL: %s", bucket)
-        }
-
-        // 提取 bucket (路径部分)
-        pathParts := strings.Split(strings.Trim(u.Path, "/"), "/")
-        if len(pathParts) > 0 {
-            bucket = pathParts[0] // 只获取 `models`
-        }
-
-        // 提取 endpoint (去掉路径，只保留域名)
-        endpoint = u.Scheme + "://" + u.Host
-    }
-
-    if bucket == "" {
-        return nil, fmt.Errorf("Bucket name cannot be empty")
-    }
-    if endpoint == "" {
-        return nil, fmt.Errorf("Cloudflare R2 requires an explicit endpoint")
-    }
-
-    fmt.Println("Parsed Bucket:", bucket)
-    fmt.Println("Parsed Endpoint:", endpoint)
-
-    awsConfig := &aws.Config{
-        Endpoint:         aws.String(endpoint),
-        Region:           aws.String("us-east-1"), // ✅ R2 需要 `us-east-1`
-        S3ForcePathStyle: aws.Bool(true),
-        Credentials:      credentials.NewStaticCredentials(accessKey, secretKey, ""),
-    }
-
-    sess, err := session.NewSession(awsConfig)
-    if err != nil {
-        return nil, fmt.Errorf("failed to create R2 session: %v", err)
-    }
-
-    return &r2Client{
-        bucket:  bucket,
-        s3:      s3.New(sess),
-        session: sess,
-    }, nil
-}
-*/
 
 func newR2(bucket, accessKey, secretKey, endpoint string) (ObjectStorage, error) {
     fmt.Println("✅ Entering newR2() with bucket:", bucket, "endpoint:", endpoint)
