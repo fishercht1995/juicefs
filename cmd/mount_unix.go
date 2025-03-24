@@ -381,6 +381,10 @@ func mountFlags() []cli.Flag {
 			Name:  "force",
 			Usage: "force to mount even if the mount point is already mounted by the same filesystem",
 		},
+		&cli.StringFlag{
+			Name:  "provider-config",
+			Usage: "Path to JSON file specifying multiple cloud providers",
+		},
 	}
 	if runtime.GOOS == "linux" {
 		selfFlags = append(selfFlags, &cli.BoolFlag{
